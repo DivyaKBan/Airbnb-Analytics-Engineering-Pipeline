@@ -1,361 +1,367 @@
-# 🏠 Airbnb End-to-End Data Engineering Project
+# Airbnb Analytics Engineering Pipeline
 
-## 📋 Overview
+A data engineering portfolio project that transforms Airbnb bookings, host details, and property listings into structured datasets for analysis. The workflow combines **AWS S3**, **Snowflake**, and **dbt** to organize raw inputs, clean and standardize records, and publish models for analytics.
 
-This project implements a complete end-to-end data engineering pipeline for Airbnb data using modern cloud technologies. The solution demonstrates best practices in data warehousing, transformation, and analytics using **Snowflake**, **dbt (Data Build Tool)**, and **AWS**.
+## Project at a glance
 
-The pipeline processes Airbnb listings, bookings, and hosts data through a medallion architecture (Bronze → Silver → Gold), implementing incremental loading, slowly changing dimensions (SCD Type 2), and creating analytics-ready datasets.
+- **Data domain:** Airbnb listings, bookings, and hosts
+- **Warehouse:** Snowflake
+- **Transformations:** dbt Core and SQL/Jinja
+- **Cloud storage:** AWS S3 (for the CSV ingestion path)
+- **Python:** 3.12+
+- **Version control:** Git
 
-## 🏗️ Architecture
+The project follows a **Bronze → Silver → Gold** medallion pattern. It also includes examples of incremental models, reusable macros, dbt tests, documentation, and snapshots for tracking changes over time.
 
-### Data Flow
+## Pipeline design
+
+```text
+CSV files
+   |
+   v
+AWS S3 (ingestion / storage)
+   |
+   v
+Snowflake staging tables
+   |
+   v
+Bronze models  --> minimally transformed source records
+   |
+   v
+Silver models  --> cleaned, standardized, validated records
+   |
+   v
+Gold models    --> reporting-friendly and analytics-ready datasets
 ```
-Source Data (CSV) → AWS S3 → Snowflake (Staging) → Bronze Layer → Silver Layer → Gold Layer
-                                                           ↓              ↓           ↓
-                                                      Raw Tables    Cleaned Data   Analytics
-```
 
-### Technology Stack
+The CSV-to-S3 step depends on the ingestion process configured for your environment. The SQL models described below start from the staging tables in Snowflake.
 
-- **Cloud Data Warehouse**: Snowflake
-- **Transformation Layer**: dbt (Data Build Tool)
-- **Cloud Storage**: AWS S3 (implied)
-- **Version Control**: Git
-- **Python**: 3.12+
-- **Key dbt Features**:
-  - Incremental models
-  - Snapshots (SCD Type 2)
-  - Custom macros
-  - Jinja templating
-  - Testing and documentation
+## Data layers
 
-## 📊 Data Model
+### Bronze: source-aligned data
 
-### Medallion Architecture
+The Bronze models bring staging data into the dbt transformation workflow with limited changes.
 
-#### 🥉 Bronze Layer (Raw Data)
-Raw data ingested from staging with minimal transformations:
-- `bronze_bookings` - Raw booking transactions
-- `bronze_hosts` - Raw host information
-- `bronze_listings` - Raw property listings
+| Model | Purpose |
+|---|---|
+| `bronze_bookings` | Booking-level records |
+| `bronze_hosts` | Host attributes |
+| `bronze_listings` | Property and listing details |
 
-#### 🥈 Silver Layer (Cleaned Data)
-Cleaned and standardized data:
-- `silver_bookings` - Validated booking records
-- `silver_hosts` - Enhanced host profiles with quality metrics
-- `silver_listings` - Standardized listing information with price categorization
+### Silver: standardized data
 
-#### 🥇 Gold Layer (Analytics-Ready)
-Business-ready datasets optimized for analytics:
-- `obt` (One Big Table) - Denormalized fact table joining bookings, listings, and hosts
-- `fact` - Fact table for dimensional modeling
-- Ephemeral models for intermediate transformations
+The Silver layer applies cleaning and business-friendly transformations to make the source records easier to use downstream.
 
-### Snapshots (SCD Type 2)
-Slowly Changing Dimensions to track historical changes:
-- `dim_bookings` - Historical booking changes
-- `dim_hosts` - Historical host profile changes
-- `dim_listings` - Historical listing changes
+| Model | Purpose |
+|---|---|
+| `silver_bookings` | Validated and standardized booking records |
+| `silver_hosts` | Host information enriched with quality-related metrics |
+| `silver_listings` | Standardized listing attributes, including price categories |
 
-## 📁 Project Structure
+### Gold: analytics models
 
-```
+Gold models combine the cleaned data into structures intended for reporting and analysis.
+
+- **`fact`** — a fact-oriented model for dimensional analysis.
+- **`obt` (One Big Table)** — a denormalized dataset that combines booking, listing, and host information.
+- **Ephemeral models** — intermediate transformations that dbt inlines into downstream SQL rather than creating standalone warehouse tables.
+
+### Historical tracking with snapshots
+
+dbt snapshots can preserve versions of records as source attributes change. The project includes snapshot configurations for:
+
+- `dim_bookings`
+- `dim_hosts`
+- `dim_listings`
+
+These are intended to support historical and point-in-time analysis using Slowly Changing Dimension Type 2 (SCD Type 2) patterns. Snapshot behavior depends on the configuration and source fields defined in the YAML files.
+
+## Repository layout
+
+```text
 AWS_DBT_Snowflake/
-├── README.md                           # This file
-├── pyproject.toml                      # Python dependencies
-├── main.py                             # Main execution script
-│
-├── SourceData/                         # Raw CSV data files
+├── README.md
+├── pyproject.toml
+├── main.py
+├── SourceData/
 │   ├── bookings.csv
 │   ├── hosts.csv
 │   └── listings.csv
-│
-├── DDL/                                # Database schema definitions
-│   ├── ddl.sql                         # Table creation scripts
+├── DDL/
+│   ├── ddl.sql
 │   └── resources.sql
-│
-└── aws_dbt_snowflake_project/         # Main dbt project
-    ├── dbt_project.yml                 # dbt project configuration
-    ├── ExampleProfiles.yml             # Snowflake connection profile
-    │
-    ├── models/                         # dbt models
+└── aws_dbt_snowflake_project/
+    ├── dbt_project.yml
+    ├── ExampleProfiles.yml
+    ├── models/
     │   ├── sources/
-    │   │   └── sources.yml             # Source definitions
-    │   ├── bronze/                     # Raw data layer
+    │   │   └── sources.yml
+    │   ├── bronze/
     │   │   ├── bronze_bookings.sql
     │   │   ├── bronze_hosts.sql
     │   │   └── bronze_listings.sql
-    │   ├── silver/                     # Cleaned data layer
+    │   ├── silver/
     │   │   ├── silver_bookings.sql
     │   │   ├── silver_hosts.sql
     │   │   └── silver_listings.sql
-    │   └── gold/                       # Analytics layer
+    │   └── gold/
     │       ├── fact.sql
     │       ├── obt.sql
-    │       └── ephemeral/              # Temporary models
+    │       └── ephemeral/
     │           ├── bookings.sql
     │           ├── hosts.sql
     │           └── listings.sql
-    │
-    ├── macros/                         # Reusable SQL functions
-    │   ├── generate_schema_name.sql    # Custom schema naming
-    │   ├── multiply.sql                # Math operations
-    │   ├── tag.sql                     # Categorization logic
-    │   └── trimmer.sql                 # String utilities
-    │
-    ├── analyses/                       # Ad-hoc analysis queries
+    ├── macros/
+    │   ├── generate_schema_name.sql
+    │   ├── multiply.sql
+    │   ├── tag.sql
+    │   └── trimmer.sql
+    ├── analyses/
     │   ├── explore.sql
     │   ├── if_else.sql
     │   └── loop.sql
-    │
-    ├── snapshots/                      # SCD Type 2 configurations
+    ├── snapshots/
     │   ├── dim_bookings.yml
     │   ├── dim_hosts.yml
     │   └── dim_listings.yml
-    │
-    ├── tests/                          # Data quality tests
+    ├── tests/
     │   └── source_tests.sql
-    │
-    └── seeds/                          # Static reference data
+    └── seeds/
 ```
 
-## 🚀 Getting Started
+The tree above describes the intended layout; adjust paths and filenames if your local repository differs.
 
-### Prerequisites
+## Requirements
 
-1. **Snowflake Account (will create one if doesn't exist)**
+Before running the project, make sure you have:
 
-2. **Python Environment**
-   - Python 3.12 or higher
-   - pip or uv package manager
+1. A Snowflake account with permission to create or use the required database, schemas, tables, and warehouse.
+2. Python 3.12 or a compatible version supported by the installed dbt packages.
+3. `dbt-core` and the `dbt-snowflake` adapter.
+4. AWS access if you are using S3 for source-file storage.
+5. The source CSV files and the SQL scripts referenced in this README.
 
-3. **AWS Account (will create one if doesn't exist) ** (for S3 storage)
 
-### Installation
+Replace `<repository-url>` with your Git repository URL.
 
-1. **Clone the Repository**
-   ```bash
-   git clone <repository-url>
-   cd AWS_DBT_Snowflake
-   ```
+### 1. Create and activate a virtual environment
 
-2. **Create Virtual Environment**
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1  # Windows PowerShell
-   # or
-   source .venv/bin/activate    # Linux/Mac
-   ```
+**Windows PowerShell:**
 
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   # or using pyproject.toml
-   pip install -e .
-   ```
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-   **Core Dependencies:**
-   - `dbt-core>=1.11.2`
-   - `dbt-snowflake>=1.11.0`
-   - `sqlfmt>=0.0.3`
+If PowerShell blocks activation scripts, you can run the environment's Python directly instead:
 
-4. **Configure Snowflake Connection**
-   
-   Create `~/.dbt/profiles.yml`:
-   ```yaml
-   aws_dbt_snowflake_project:
-     outputs:
-       dev:
-         account: <your-account-identifier>
-         database: AIRBNB
-         password: <your-password>
-         role: ACCOUNTADMIN
-         schema: dbt_schema
-         threads: 4
-         type: snowflake
-         user: <your-username>
-         warehouse: COMPUTE_WH
-     target: dev
-   ```
+```powershell
+.\.venv\Scripts\python.exe --version
+```
 
-5. **Set Up Snowflake Database**
-   
-   Run the DDL scripts to create tables:
-   ```bash
-   # Execute DDL/ddl.sql in Snowflake to create staging tables
-   ```
+**Linux/macOS:**
 
-6. **Load Source Data**
-   
-   Load CSV files from `SourceData/` to Snowflake staging schema:
-   - `bookings.csv` → `AIRBNB.STAGING.BOOKINGS`
-   - `hosts.csv` → `AIRBNB.STAGING.HOSTS`
-   - `listings.csv` → `AIRBNB.STAGING.LISTINGS`
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-## 🔧 Usage
+### 2. Install dbt and the Snowflake adapter
 
-### Running dbt Commands
+Using `uv`:
 
-1. **Test Connection**
-   ```bash
-   cd aws_dbt_snowflake_project
-   dbt debug
-   ```
+```bash
+uv pip install dbt-core dbt-snowflake
+```
 
-2. **Install Dependencies**
-   ```bash
-   dbt deps
-   ```
+Or using pip:
 
-3. **Run All Models**
-   ```bash
-   dbt run
-   ```
+```bash
+python -m pip install dbt-core dbt-snowflake
+```
 
-4. **Run Specific Layer**
-   ```bash
-   dbt run --select bronze.*      # Run bronze models only
-   dbt run --select silver.*      # Run silver models only
-   dbt run --select gold.*        # Run gold models only
-   ```
+Confirm the installation:
 
-5. **Run Tests**
-   ```bash
-   dbt test
-   ```
+```bash
+dbt --version
+```
 
-6. **Run Snapshots**
-   ```bash
-   dbt snapshot
-   ```
 
-7. **Generate Documentation**
-   ```bash
-   dbt docs generate
-   dbt docs serve
-   ```
 
-8. **Build Everything**
-   ```bash
-   dbt build  # Runs models, tests, and snapshots
-   ```
+### 3. Load the source CSV files
 
-## 🎯 Key Features
+Load the files from `SourceData/` into the staging tables expected by the dbt sources:
 
-### 1. Incremental Loading
-Bronze and silver models use incremental materialization to process only new/changed data:
+| File | Expected staging table |
+|---|---|
+| `bookings.csv` | `AIRBNB.STAGING.BOOKINGS` |
+| `hosts.csv` | `AIRBNB.STAGING.HOSTS` |
+| `listings.csv` | `AIRBNB.STAGING.LISTINGS` |
+
+The exact loading method (for example, Snowflake stages and `COPY INTO`, or an AWS S3 integration) depends on the setup you choose. Make sure the actual table and column names match `models/sources/sources.yml`.
+
+## Running the project
+
+Run dbt commands from the directory containing `dbt_project.yml`, unless you pass the project directory explicitly.
+
+```bash
+cd aws_dbt_snowflake_project
+```
+
+
+### Check the connection and configuration
+
+```bash
+dbt debug
+```
+
+### Fetch package dependencies
+
+```bash
+dbt deps
+```
+
+### Execute models
+
+```bash
+dbt run
+```
+
+Run a particular layer:
+
+```bash
+dbt run --select bronze
+dbt run --select silver
+dbt run --select gold
+```
+
+The selection syntax assumes the model paths or configuration are organized so that the layer names can be selected as shown. If your project uses different selectors, update these commands accordingly.
+
+### Run data tests and snapshots
+
+```bash
+dbt test
+dbt snapshot
+```
+
+### Build models and run associated tests
+
+```bash
+dbt build
+```
+
+### Generate and view documentation
+
+```bash
+dbt docs generate
+dbt docs serve
+```
+
+The documentation site includes model descriptions, test metadata, and lineage information available in the dbt project.
+
+## Transformation patterns demonstrated
+
+### Incremental models
+
+Incremental materialization can limit processing to newly added or changed records after the first build. The exact filter should use a reliable timestamp or change-tracking column from your source.
+
+Illustrative pattern:
+
 ```sql
 {{ config(materialized='incremental') }}
+
+select *
+from {{ source('staging', 'bookings') }}
+
 {% if is_incremental() %}
-    WHERE CREATED_AT > (SELECT COALESCE(MAX(CREATED_AT), '1900-01-01') FROM {{ this }})
+where created_at > (
+    select coalesce(max(created_at), '1900-01-01'::timestamp)
+    from {{ this }}
+)
 {% endif %}
 ```
 
-### 2. Custom Macros
-Reusable business logic:
-- **`tag()` macro**: Categorizes prices into 'low', 'medium', 'high'
-  ```sql
-  {{ tag('CAST(PRICE_PER_NIGHT AS INT)') }} AS PRICE_PER_NIGHT_TAG
-  ```
+Adapt the source name, table name, and timestamp column to your actual project. If existing records can be updated, a timestamp filter alone may not be sufficient; consider a suitable `unique_key` and incremental strategy.
 
-### 3. Dynamic SQL Generation
-The OBT (One Big Table) model uses Jinja loops for maintainable joins:
+### Reusable macros
+
+Macros keep repeated SQL logic in one place. The repository includes examples such as:
+
+- `tag()` — assigns price bands such as low, medium, or high.
+- `multiply()` — reusable multiplication logic.
+- `trimmer()` — string cleanup utilities.
+- `generate_schema_name()` — controls how dbt derives target schema names.
+
+Example usage, assuming the macro accepts a SQL expression:
+
 ```sql
-{% set configs = [...] %}
-SELECT {% for config in configs %}...{% endfor %}
+{{ tag('CAST(price_per_night AS INT)') }} AS price_per_night_tag
 ```
 
-### 4. Slowly Changing Dimensions
-Track historical changes with timestamp-based snapshots:
-- Valid from/to dates automatically maintained
-- Historical data preserved for point-in-time analysis
+Check the macro definitions for the exact arguments and business rules implemented in this repository.
 
-### 5. Schema Organization
-Automatic schema separation by layer:
-- Bronze models → `AIRBNB.BRONZE.*`
-- Silver models → `AIRBNB.SILVER.*`
-- Gold models → `AIRBNB.GOLD.*`
+### Jinja-based SQL generation
 
-## 📈 Data Quality
+Jinja lets models generate repetitive SQL from configuration lists or loops. This can help keep a denormalized model such as `obt` easier to maintain as joins are added or changed.
 
-### Testing Strategy
-- Source data validation tests
-- Unique key constraints
-- Not null checks
-- Referential integrity tests
-- Custom business rule tests
+### Schema separation by layer
 
-### Data Lineage
-dbt automatically tracks data lineage, showing:
-- Upstream dependencies
-- Downstream impacts
-- Model relationships
-- Source to consumption flow
+The custom schema-generation macro is intended to organize outputs by layer, for example:
 
-## 🔐 Security & Best Practices
+- Bronze models → `AIRBNB.BRONZE`
+- Silver models → `AIRBNB.SILVER`
+- Gold models → `AIRBNB.GOLD`
 
-1. **Credentials Management**
-   - Never commit `profiles.yml` with credentials
-   - Use environment variables for sensitive data
-   - Implement role-based access control (RBAC) in Snowflake
+The final schema names depend on `generate_schema_name.sql`, dbt configuration, and the target profile.
 
-2. **Code Quality**
-   - SQL formatting with `sqlfmt`
-   - Version control with Git
-   - Code reviews for model changes
+## Data quality and lineage
 
-3. **Performance Optimization**
-   - Incremental models for large datasets
-   - Ephemeral models for intermediate transformations
-   - Appropriate clustering keys in Snowflake
+The repository includes a SQL test file and dbt's built-in testing capabilities. A useful validation suite can cover:
 
-## 📚 Additional Resources
+- Required values (`not_null`)
+- Unique identifiers (`unique`)
+- Valid relationships between models (`relationships`)
+- Accepted values and business rules
+- Source data assumptions
 
-- **dbt Documentation**: https://docs.getdbt.com/
-- **Snowflake Documentation**: https://docs.snowflake.com/
-- **dbt Best Practices**: https://docs.getdbt.com/guides/best-practices
+dbt builds a dependency graph from model and source references. This graph helps trace upstream inputs and understand which downstream models may be affected by a change.
 
-## 🤝 Contributing
+## Operational and development practices
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- **Credentials:** Keep secrets outside version control and use least-privilege Snowflake roles.
+- **Code review:** Review SQL and model changes before merging.
+- **Formatting:** Use a SQL formatter such as `sqlfmt` if configured for the repository.
+- **Incremental processing:** Validate timestamp logic and use full refreshes only when appropriate.
+- **Intermediate models:** Use ephemeral materialization when an intermediate result does not need its own warehouse table.
+- **Warehouse performance:** Choose warehouse size and clustering only after checking query patterns and data volume.
+- **Reproducibility:** Keep dependency versions and setup instructions consistent with the project configuration.
 
-## 📝 License
+## Troubleshooting
 
-This project is part of a data engineering portfolio demonstration.
+| Symptom | Checks to perform |
+|---|---|
+| dbt cannot connect to Snowflake | Run `dbt debug`; check account identifier, credentials, role, warehouse, database, schema, and network access. |
+| `dbt_project.yml` not found | Change into the directory containing the file, or pass the correct project directory. |
+| Model compilation fails | Review Jinja syntax, `ref()`/`source()` names, YAML configuration, and model dependencies. |
+| A source or relation is missing | Verify that staging tables exist and that source definitions match their database, schema, and table names. |
+| Incremental results are incomplete | Check the timestamp filter, update behavior, `unique_key`, and whether a full refresh is needed. |
+| PowerShell blocks virtual environment activation | Use `.\.venv\Scripts\Activate.ps1` from PowerShell, or invoke `.\.venv\Scripts\python.exe` directly. |
+| `dbt` launcher fails | Confirm the active interpreter and reinstall dbt packages inside the intended environment if needed. |
 
-## 👤 Author
+For an incremental model that needs a complete rebuild, and only after confirming that a rebuild is appropriate, run:
 
-**Project**: Airbnb Data Engineering Pipeline  
-**Technologies**: Snowflake, dbt, AWS, Python
+```bash
+dbt run --full-refresh
+```
 
-## 🐛 Troubleshooting
+## Possible next steps
 
-### Common Issues
+- Add automated CI checks for SQL compilation and dbt tests.
+- Build a dashboard on top of the Gold models in Power BI or Tableau.
+- Add monitoring and alerts for failed loads or quality checks.
+- Expand business metrics for bookings, host performance, listing pricing, and trends.
+- Review whether sensitive fields need masking or restricted access.
 
-1. **Connection Error**
-   - Verify Snowflake credentials in `profiles.yml`
-   - Check network connectivity
-   - Ensure warehouse is running
 
-2. **Compilation Error**
-   - Run `dbt debug` to check configuration
-   - Verify model dependencies
-   - Check Jinja syntax
 
-3. **Incremental Load Issues**
-   - Run `dbt run --full-refresh` to rebuild from scratch
-   - Verify source data timestamps
 
-## 📊 Future Enhancements
-
-- [ ] Add data quality dashboards
-- [ ] Implement CI/CD pipeline
-- [ ] Add more complex business metrics
-- [ ] Integrate with BI tools (Tableau/Power BI)
-- [ ] Add alerting and monitoring
-- [ ] Implement data masking for PII
-- [ ] Add more comprehensive testing suite
