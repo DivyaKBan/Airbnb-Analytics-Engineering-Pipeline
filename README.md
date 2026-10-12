@@ -1,6 +1,6 @@
 # Airbnb Analytics Engineering Pipeline
 
-A data engineering portfolio project that transforms Airbnb bookings, host details, and property listings into structured datasets for analysis. The workflow combines **AWS S3**, **Snowflake**, and **dbt** to organize raw inputs, clean and standardize records, and publish models for analytics.
+A data engineering project that transforms Airbnb bookings, host details, and property listings into structured datasets for analysis. The workflow combines **AWS S3**, **Snowflake**, and **dbt** to organize raw inputs, clean and standardize records, and publish models for analytics.
 
 ## Project at a glance
 
